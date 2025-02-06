@@ -1,0 +1,2 @@
+startingVolume,startingCellCount,startingEssentialProteinConcentration,muMax,carryingCapacity,divisionSymmetry,essentialProteinDegradationRate,essentialMetaboliteProductionRate,essentialMetaboliteDegradationRate,essentialMetaboliteKm,essentialMetaboliteThreshold,agentTimeStep,duration
+3.9999999999999994e-9,100,200.0,2.0,1.0e6,0.0,0.05,2.0,0.5,50.0,12.5,0.08333333333333333,15.0
