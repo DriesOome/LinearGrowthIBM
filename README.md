@@ -20,6 +20,7 @@ Typically this proceess will take less than 20 minute.
 1) Open bioreactorMain.jl file
 2) Adjust parameters to desired values
 3) Run bioreactorMain.jl
+4) # Expected output!!!!
 # Run time
 Should take no more than 1 minute.
 ## Results 
