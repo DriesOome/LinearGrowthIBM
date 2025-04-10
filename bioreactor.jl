@@ -97,7 +97,7 @@ function bioreactorODEFunction(du, u, bioreactor::Bioreactor, t)
     growthModifications::Vector{Float64} = broadcast(max, 0.0, (essentialMetaboliteConcentration)./((essentialMetaboliteConcentration) .+ bioreactor.parameters.essentialMetaboliteKm))
     thresholdBits::Vector{Float64} = essentialMetaboliteConcentration .>= bioreactor.parameters.essentialMetaboliteThreshold
     du[getCellIdx():3:end] = bioreactor.parameters.muMax.*growthModifications.*thresholdBits
-    du[getCellIdx()+1:3:end] = -bioreactor.parameters.essentialProteinDegradationRate.*essentialProteinCounts
+    du[getCellIdx()+1:3:end] = bioreactor.parameters.essentialProteinProductionRate .- bioreactor.parameters.essentialProteinDegradationRate.*essentialProteinCounts
     du[getCellIdx()+2:3:end] = bioreactor.parameters.essentialMetaboliteProductionRate.*essentialProteinCounts-bioreactor.parameters.essentialMetaboliteDegradationRate.*essentialMetaboliteCounts
     nothing
 end 

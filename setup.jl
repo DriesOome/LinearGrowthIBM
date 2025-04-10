@@ -8,5 +8,7 @@ Pkg.add([
     "Distributions",
     "DataFrames",
     "XLSX",
-    "Measures"
+    "Measures",
+    "CSV",
+    "LaTeXStrings"
 ])

@@ -10,6 +10,7 @@ mutable struct BioreactorParameters
 
     # essentialProtein kinetics
     divisionSymmetry::Float64
+    essentialProteinProductionRate::Float64
     essentialProteinDegradationRate::Float64
 
     # essential metabolite kinetics
@@ -31,7 +32,7 @@ Base.copy(p::BioreactorParameters) =
         # growth kinetics
         p.muMax, p.carryingCapacity,
         # essentialProtein kinetics
-        p.divisionSymmetry, p.essentialProteinDegradationRate,
+        p.divisionSymmetry, p.essentialProteinProductionRate, p.essentialProteinDegradationRate,
         # essential metabolite kinetics
         p.essentialMetaboliteProductionRate, p.essentialMetaboliteDegradationRate, p.essentialMetaboliteKm, essentialMetaboliteThreshold,
         # simulation settings
