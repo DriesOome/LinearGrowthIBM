@@ -10,5 +10,6 @@ Pkg.add([
     "XLSX",
     "Measures",
     "CSV",
-    "LaTeXStrings"
+    "LaTeXStrings",
+    "Interpolations"
 ])

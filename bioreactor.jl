@@ -74,7 +74,7 @@ function divideCells(integrator, bioreactor)
         resize!(integrator, length(integrator.u)+3)
         childId = totalCells(integrator.u)
         # reset volumes
-        setCellVolume!(integrator.u, childId,  getCellVolume(integrator.u, parentId)-rand(Normal(1,0.2)))
+        setCellVolume!(integrator.u, childId,  getCellVolume(integrator.u, parentId)-rand(Normal(1,0.1)))
         setCellVolume!(integrator.u, parentId, getCellVolume(integrator.u, parentId)-getCellVolume(integrator.u, childId))
         # divide essential protein         
         setCellEssentialProtein!(integrator.u, childId, rand(Binomial(floor(getCellEssentialProtein(integrator.u, parentId)), bioreactor.parameters.divisionSymmetry)))
@@ -98,7 +98,7 @@ function bioreactorODEFunction(du, u, bioreactor::Bioreactor, t)
     thresholdBits::Vector{Float64} = essentialMetaboliteConcentration .>= bioreactor.parameters.essentialMetaboliteThreshold
     du[getCellIdx():3:end] = bioreactor.parameters.muMax.*growthModifications.*thresholdBits
     du[getCellIdx()+1:3:end] = bioreactor.parameters.essentialProteinProductionRate .- bioreactor.parameters.essentialProteinDegradationRate.*essentialProteinCounts
-    du[getCellIdx()+2:3:end] = bioreactor.parameters.essentialMetaboliteProductionRate.*essentialProteinCounts-bioreactor.parameters.essentialMetaboliteDegradationRate.*essentialMetaboliteCounts
+    du[getCellIdx()+2:3:end] = bioreactor.parameters.essentialMetaboliteProductionRate.*essentialProteinCounts .- bioreactor.parameters.essentialMetaboliteDegradationRate.*essentialMetaboliteCounts
     nothing
 end 
 
