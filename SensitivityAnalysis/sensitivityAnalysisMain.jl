@@ -1,6 +1,7 @@
 include("./nominalParameters.jl")
 include("./sensitivityAnalysis.jl")
 
+println("Running local SA...")
 ### Analysis: local sensitivy analysis 
 ## step 1: create ranges for each parameter under investigation
 saRanges::Dict{Symbol, Vector{Float64}} = Dict{Symbol, Vector{Float64}}()
@@ -18,6 +19,7 @@ saRanges[:essentialMetaboliteThreshold] = [5.0, 100.0]
 ## step 2: Create and run bioreactors 
 saBioreactors::Dict{Symbol, Vector{Bioreactor}} = Dict{Symbol, Vector{Bioreactor}}()
 for varName in keys(saRanges)
+    println("- Param: "*string(varName)*"...")
     bioreactors::Vector{Bioreactor} = constructBioreactors(constructParameterRange(nominalParameters, varName, saRanges[varName], 10))
     runBioreactors(bioreactors)
     saBioreactors[varName] = bioreactors
@@ -25,3 +27,5 @@ end
 
 ## step 3: Plot results
 savefig(plotSensitivityAnalysis(saBioreactors), "./saAnalysis.png")
+
+println("Done!")

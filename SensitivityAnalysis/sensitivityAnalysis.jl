@@ -23,7 +23,7 @@ end
 
 function runBioreactors(bioreactors::Vector{Bioreactor})
     for bioreactor in bioreactors
-        simulateBioreactor(bioreactor, bioreactor.parameters.duration)
+        simulateBioreactor(bioreactor)
     end
 end
 

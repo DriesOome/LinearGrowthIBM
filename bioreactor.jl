@@ -46,18 +46,29 @@ function initializeBioreactorState(bioreactor::Bioreactor)
     append!(u, initializeBacterialPopulation(bioreactor))
 end
 
-function simulateBioreactor(bioreactor::Bioreactor, duration::Float64)
+function simulateBioreactor(bioreactor::Bioreactor)
     # inital state
     u_init = initializeBioreactorState(bioreactor)
     # setup agent actions https://docs.sciml.ai/DiffEqDocs/stable/features/callback_functions/
-    stops = collect(0:bioreactor.parameters.agentTimeStep:duration)
+    stops = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
+
     agentActionCondition(u, t, integrator) = t in stops
     agentActionAffect!(integrator) = agentActions(integrator, bioreactor)
-    cb = DiscreteCallback(agentActionCondition, agentActionAffect!;
+    agentCallback = DiscreteCallback(agentActionCondition, agentActionAffect!;
         save_positions = (true, true))
-    bioreactor.solution = solve(ODEProblem(bioreactorODEFunction, u_init, (0, duration), bioreactor),
-        callback = cb, tstops = stops
+
+    stoppingCondition(u, t, integrator) = totalCells(u) > 1e5
+    stoppingAffect!(integrator) = terminateBioreactor(integrator, bioreactor)
+    stoppingCallback = DiscreteCallback(stoppingCondition, stoppingAffect!)
+
+    bioreactor.solution = solve(ODEProblem(bioreactorODEFunction, u_init, (0, bioreactor.parameters.duration), bioreactor),
+        callback = CallbackSet(stoppingCallback, agentCallback), tstops = stops
     )
+end
+
+function terminateBioreactor(integrator, bioreactor::Bioreactor)
+    bioreactor.parameters.duration = integrator.t
+    terminate!(integrator)
 end
 
 function agentActions(integrator, bioreactor::Bioreactor)

@@ -136,22 +136,7 @@ function plotBioreactors(bioreactors::Vector{Bioreactor})
     l = @layout [a{0.75h}; d e]
     return plot!(biomassPlot, essentialProteinPlot, essentialMetabolitePlot, layout=l, size=(2560,1444).*0.7, margin=10mm)
 end
-# derivative plots
-function plotBiomassDerivative(bioreactor::Bioreactor)
-    return plotBiomassDerivative!(plot(), bioreactor)
-end
 
-function plotBiomassDerivative!(parentPlot, bioreactor::Bioreactor)
-    timepoints::Vector{Float64} = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
-    biomass::Vector{Float64} = [sum(bioreactor.solution(t)[getCellIdx():3:end]) for t in timepoints]
-    derivative = calculateDerivative(timepoints, biomass)
-    return plot!(parentPlot, timepoints, derivative)
-end
-
-function calculateDerivative(timepoints::Vector{Float64}, values::Vector{Float64})
-    itp = interpolate((timepoints,), values, Gridded(Linear()))
-    return only.(Interpolations.gradient.(Ref(itp), timepoints))
-end
 
 # histogram plots
 function essentialProteinHistogram(bioreactor::Bioreactor, timepoint::Float64)
