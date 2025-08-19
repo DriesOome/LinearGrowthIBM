@@ -5,11 +5,8 @@ using Distributions
 include("./bioreactorParameters.jl")
 
 mutable struct Bioreactor
-    # time::Float64
-    ## reactor variables
-    # substrateConcentration::Float64
-    # volume::Float64
-    # productConcentration::Float64
+    # hiddenCellCount::Float64
+    # hiddenCellDensity::Float64
     ## cell variables
     # volume::Float64
     # essentialProtein::Float64
@@ -43,7 +40,8 @@ function initializeBioreactorState(bioreactor::Bioreactor)
     u::Vector{Float64} = []
     # global state variables
     push!(u, bioreactor.parameters.startingVolume) # volume
-    push!(u, 0) # product
+    push!(u, 0) # hidden cell count
+    push!(u, 0) # hiddenCellDensity
     # cell state variables
     append!(u, initializeBacterialPopulation(bioreactor))
 end
@@ -59,12 +57,12 @@ function simulateBioreactor(bioreactor::Bioreactor)
     agentCallback = DiscreteCallback(agentActionCondition, agentActionAffect!;
         save_positions = (true, true))
 
-    stoppingCondition(u, t, integrator) = totalCells(u) > 1e5
+    stoppingCondition(u, t, integrator) = getTotalGrowingCells(u) > 1e5
     stoppingAffect!(integrator) = terminateBioreactor(integrator, bioreactor)
     stoppingCallback = DiscreteCallback(stoppingCondition, stoppingAffect!)
 
     bioreactor.solution = solve(ODEProblem(bioreactorODEFunction, u_init, (0, bioreactor.parameters.duration), bioreactor),
-        callback = CallbackSet(stoppingCallback, agentCallback), tstops = stops
+        callback = CallbackSet(stoppingCallback, agentCallback), tstops = stops, alg=Tsit5()
     )
 end
 
@@ -75,6 +73,7 @@ end
 
 function agentActions(integrator, bioreactor::Bioreactor)
     divideCells(integrator, bioreactor)
+    removeNonDividingCells(integrator, bioreactor)
     # update the progress bar
     if bioreactor.parameters.showProgress == true; update(bioreactor.progressBar) end
     nothing
@@ -85,7 +84,7 @@ function divideCells(integrator, bioreactor)
     dividingCells = findall(integrator.u[getCellIdx():3:end] .> 2)
     for parentId in dividingCells
         resize!(integrator, length(integrator.u)+3)
-        childId = totalCells(integrator.u)
+        childId = getTotalGrowingCells(integrator.u)
         # reset volumes
         setCellVolume!(integrator.u, childId,  getCellVolume(integrator.u, parentId)-rand(Normal(1,0.05)))
         setCellVolume!(integrator.u, parentId, getCellVolume(integrator.u, parentId)-getCellVolume(integrator.u, childId))
@@ -99,10 +98,27 @@ function divideCells(integrator, bioreactor)
     return nothing
 end
 
+function removeNonDividingCells(integrator, bioreactor::Bioreactor)
+    essentialMetaboliteCounts::Vector{Float64} = integrator.u[getCellIdx()+2:3:end]
+    essentialMetaboliteConcentration::Vector{Float64} = essentialMetaboliteCounts./integrator.u[getCellIdx():3:end]
+    growthModifications::Vector{Float64} = broadcast(max, 0.0, (essentialMetaboliteConcentration)./(essentialMetaboliteConcentration .+ bioreactor.parameters.essentialMetaboliteKm))
+    thresholdBits::Vector{Float64} = essentialMetaboliteConcentration .>= bioreactor.parameters.essentialMetaboliteThreshold
+    cellsToDelete::Vector{Int64} = findall(growthModifications.*thresholdBits .<= 0.01)
+    removeCells(integrator, cellsToDelete)
+end
+
+function removeCells(integrator, cellIds)
+    cellIdxs = map(cellId -> getCellIdx(cellId), cellIds)
+    integrator.u[getHiddenCellCountIdx()] += length(cellIdxs)
+    integrator.u[getHiddenCellDensityIdx()] += sum(integrator.u[cellIdxs])
+    deleteat!(integrator, sort([cellIdxs; cellIdxs .+ 1; cellIdxs .+ 2]))
+end
+
 function bioreactorODEFunction(du, u, bioreactor::Bioreactor, t)
     # simulate bioreactor variables
     du[getVolumeIdx()] = calculateChangeVolume(bioreactor)
-    du[getProductIdx()] = calculateChangeProductConcentration(bioreactor)
+    du[getHiddenCellCountIdx()] = 0.0
+    du[getHiddenCellDensityIdx()] = 0.0
     # simulate cell variables
     essentialProteinCounts::Vector{Float64} = u[getCellIdx()+1:3:end]
     essentialMetaboliteCounts::Vector{Float64} = u[getCellIdx()+2:3:end]
@@ -129,8 +145,16 @@ end
 # helper functions
 
 # getters and setters
-function totalCells(u)
-    return Int64((length(u)-getProductIdx())/3)
+function getTotalGrowingCells(u)
+    return Int64((length(u)-getCellIdx()+1)/3)
+end
+
+function getHiddenCellCount(u)
+    return u[getHiddenCellCountIdx()]
+end
+
+function getHiddenCellDensity(u)
+    return u[getHiddenCellDensityIdx()]
 end
 
 function getCellIdx(cellId)
@@ -157,6 +181,10 @@ function getCellEssentialMetabolite(u, cellId)
     return u[getCellIdx(cellId)+2]
 end
 
+function getCellEssentialMetaboliteConcentration(u::Vector{Float64}, cellId::Int64)
+    return getCellEssentialMetabolite(u, cellId)/getCellVolume(u, cellId)
+end
+
 function setCellEssentialMetabolite!(u, cellId, essentialMetabolite)
     u[getCellIdx(cellId)+2] = essentialMetabolite
 end
@@ -165,21 +193,33 @@ function getVolumeIdx()
     return 1
 end
 
-function getProductIdx()
-    return getVolumeIdx()+1
+function getHiddenCellCountIdx()
+    return getVolumeIdx() + 1
+end
+
+function getHiddenCellDensityIdx()
+    return getHiddenCellCountIdx()+1
 end
 
 function getCellIdx()
-    return getProductIdx()+1
+    return getHiddenCellDensityIdx()+1
+end
+
+function getTotalCellCount(u)
+    return getTotalGrowingCells(u) + getHiddenCellCount(u)
+end
+
+function getTotalCellDensity(u)
+    return sum(u[getCellIdx():3:end]) + u[getHiddenCellCountIdx()]
 end
 
 function getFractionGrowingCells(u, growthThreshold::Float64)
     fraction = 0
-    for cellId in 1:totalCells(u)
+    for cellId in 1:getTotalGrowingCells(u)
         if getCellEssentialMetabolite(u, cellId)/getCellVolume(u, cellId) >= growthThreshold
             fraction += 1
         end
     end
-    fraction = fraction/totalCells(u)
+    fraction = fraction/(getTotalCellCount(u))
     return fraction
 end

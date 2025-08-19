@@ -13,7 +13,7 @@ function plotBiomass!(parentPlot, bioreactor::Bioreactor)
     # mappings
     time = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
 
-    parentPlot = plot!(parentPlot, time, [sum(bioreactor.solution(t)[getCellIdx():3:end]) for t in time], labels="total biomass", c=:blue, xlabel="time (h)", ylabel="density/L")
+    parentPlot = plot!(parentPlot, time, [sum(bioreactor.solution(t)[getCellIdx():3:end]) + bioreactor.solution(t)[getHiddenCellDensityIdx()] for t in time], labels="total biomass", c=:blue, xlabel="time (h)", ylabel="density/L")
 
     parentPlot = plot!(parentPlot, xguidefontsize=fontsize, yguidefontsize=fontsize, legendfontpointsize=fontsize, legend=:none)
     parentPlot = plot!(parentPlot, xtick=[i for i in 0:1:100])
@@ -30,7 +30,7 @@ function plotCellCounts!(parentPlot, bioreactor::Bioreactor)
     # mappings
     time = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
 
-    parentPlot = plot!(parentPlot, time, [totalCells(bioreactor.solution(t)) for t in time], labels="total cell count", c=:blue, xlabel="time (h)", ylabel="cells/L")
+    parentPlot = plot!(parentPlot, time, [getTotalCellCount(bioreactor.solution(t)) for t in time], labels="total cell count", c=:blue, xlabel="time (h)", ylabel="cells/L")
 
     parentPlot = plot!(parentPlot, xguidefontsize=fontsize, yguidefontsize=fontsize, legendfontpointsize=fontsize, legend=:none)
     parentPlot = plot!(parentPlot, xtick=[i for i in 0:1:100])
@@ -78,7 +78,7 @@ function plotEssentialProteinPerCell!(parentPlot, bioreactor::Bioreactor)
     # mappings
     time = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
 
-    parentPlot = plot!(parentPlot, time, [sum(bioreactor.solution(t)[getCellIdx()+1:3:end]./bioreactor.solution(t)[getCellIdx():3:end])/totalCells(bioreactor.solution(t)) for t in time], c=:blue, xlabel="time (h)", ylabel="[E]/cell")
+    parentPlot = plot!(parentPlot, time, [sum(bioreactor.solution(t)[getCellIdx()+1:3:end]./bioreactor.solution(t)[getCellIdx():3:end])/getTotalCellCount(bioreactor.solution(t)) for t in time], c=:blue, xlabel="time (h)", ylabel="[E]/cell")
 
     parentPlot = plot!(parentPlot, xguidefontsize=fontsize, yguidefontsize=fontsize, legendfontpointsize=fontsize, legend=:none)
     parentPlot = plot!(parentPlot, yaxis=(:log10, [10^0, :auto]), ytick=[10^x for x in 0:12],xtick=[i for i in 0:1:100])
@@ -95,7 +95,7 @@ function plotEssentialMetabolitePerCell!(parentPlot, bioreactor::Bioreactor)
     # mappings
     time = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
 
-    parentPlot = plot!(parentPlot, time, [sum(bioreactor.solution(t)[getCellIdx()+2:3:end]./bioreactor.solution(t)[getCellIdx():3:end])/totalCells(bioreactor.solution(t)) for t in time], c=:blue, xlabel="time (h)", ylabel="[M]/cell")
+    parentPlot = plot!(parentPlot, time, [sum(bioreactor.solution(t)[getCellIdx()+2:3:end]./bioreactor.solution(t)[getCellIdx():3:end])/getTotalCellCount(bioreactor.solution(t)) for t in time], c=:blue, xlabel="time (h)", ylabel="[M]/cell")
 
     parentPlot = plot!(parentPlot, xguidefontsize=fontsize, yguidefontsize=fontsize, legendfontpointsize=fontsize, legend=:none)
     parentPlot = plot!(parentPlot, yaxis=(:log10, [10^0, :auto]), ytick=[10^x for x in 0:12],xtick=[i for i in 0:1:100])
@@ -123,8 +123,8 @@ function plotBioreactors(bioreactors::Vector{Bioreactor})
     for bioreactor in bioreactors
         time = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
         biomassPlot = plot!(biomassPlot, time, [sum(bioreactor.solution(t)[getCellIdx():3:end]) for t in time], labels="total biomass", xlabel="time (h)", ylabel="density/L")
-        essentialProteinPlot = plot!(essentialProteinPlot, time, [sum(bioreactor.solution(t)[getCellIdx()+1:3:end]./bioreactor.solution(t)[getCellIdx():3:end])/totalCells(bioreactor.solution(t)) for t in time], labels="[E]/cell", xlabel="time (h)", ylabel="E")
-        essentialMetabolitePlot = plot!(essentialMetabolitePlot, time, [sum(bioreactor.solution(t)[getCellIdx()+2:3:end]./bioreactor.solution(t)[getCellIdx():3:end])/totalCells(bioreactor.solution(t)) for t in time], labels="[M]/cell", xlabel="time (h)", ylabel="M")
+        essentialProteinPlot = plot!(essentialProteinPlot, time, [sum(bioreactor.solution(t)[getCellIdx()+1:3:end]./bioreactor.solution(t)[getCellIdx():3:end])/getTotalCellCount(bioreactor.solution(t)) for t in time], labels="[E]/cell", xlabel="time (h)", ylabel="E")
+        essentialMetabolitePlot = plot!(essentialMetabolitePlot, time, [sum(bioreactor.solution(t)[getCellIdx()+2:3:end]./bioreactor.solution(t)[getCellIdx():3:end])/getTotalCellCount(bioreactor.solution(t)) for t in time], labels="[M]/cell", xlabel="time (h)", ylabel="M")
     end
     essentialProteinPlot = plot!(essentialProteinPlot, xguidefontsize=fontsize, yguidefontsize=fontsize, legendfontpointsize=fontsize, legend=:best)
     essentialProteinPlot = plot!(essentialProteinPlot, yaxis=(:log10, [10^0, :auto]), ytick=[10^x for x in 0:12],xtick=[i for i in 0:1:100])

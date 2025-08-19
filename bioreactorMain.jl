@@ -23,7 +23,7 @@ essentialMetaboliteThreshold::Float64 = 0.0
 
 # simulation settings
 agentTimeStep::Float64 = 5/60 # h
-duration = 10.0
+duration = 100.0
 showProgress::Bool = true
 
 # Init parameter struct
@@ -45,25 +45,3 @@ include("./Plotting/plotting.jl")
 #display(plotBiomass(b))
 display(plotBioreactor(b))
 #display(essentialProteinHistogram(b, 3.0))
-
-#=
-timepoints = collect(0:5/60:b.parameters.duration)
-biomass = [sum(b.solution(t)[getCellIdx():3:end]) for t in timepoints]
-dBdt = calculateDerivative(timepoints, biomass)
-dbdt = calculateDerivative(timepoints, dBdt)
-plot(timepoints, biomass)
-plot(timepoints, dBdt)
-plot(timepoints, dbdt)
-=#
-
-k = 10
-timepoints = collect(0:5/60:b.parameters.duration)
-biomass = [sum(b.solution(t)[getCellIdx():3:end]) for t in timepoints]
-timepoints = [mean(timepoints[(i-k):(i+k)]) for i in (1+k):(length(timepoints)-k)]
-biomass = [mean(biomass[(i-k):(i+k)]) for i in (1+k):(length(biomass)-k)]
-biomass ./= maximum(biomass)
-dBdt = calculateDerivative(timepoints, biomass)
-dbdt = calculateDerivative(timepoints, dBdt)
-display(plot(timepoints, biomass))
-display(plot(timepoints, dBdt))
-display(plot(timepoints, dbdt))
