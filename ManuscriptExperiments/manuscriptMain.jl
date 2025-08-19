@@ -3,7 +3,6 @@ include("../Plotting/plotting.jl")
 include("./manuscriptParameters.jl")
 include("../dataExtractor.jl")
 include("./manuscriptPlots.jl")
-using LaTeXStrings
 dataTimePoints = collect(0:0.5:manuscriptParameters.duration)
 
 #= symmetric growth with dilution
@@ -22,7 +21,7 @@ savefig(plotGrowingFraction(b), "./ManuscriptExperiments/Figures/"*scenarioName*
 parametersLinear = deepcopy(manuscriptParameters)
 parametersLinear.divisionSymmetry = 0.0
 bLinear = Bioreactor(parametersLinear)
-simulateBioreactor(bLinear, parametersLinear.duration)
+simulateBioreactor(bLinear)
 scenarioName = "linear"
 saveBioreactorRun(bLinear, dataTimePoints, "./ManuscriptExperiments/Data/"*scenarioName)
 biomassPlotLinear = plotBiomass(bLinear)
@@ -36,10 +35,10 @@ savefig(plotGrowingFraction(bLinear), "./ManuscriptExperiments/Figures/"*scenari
 # symmetric unlimited growth
 parametersExpUnConstr = deepcopy(manuscriptParameters)
 parametersExpUnConstr.divisionSymmetry = 0.5
-parametersExpUnConstr.essentialProteinProductionRate = 20000.0
-parametersExpUnConstr.duration = 3.0
+parametersExpUnConstr.essentialProteinProductionRate = 1000.0
+parametersExpUnConstr.duration = 8.0
 bExpUnConstr = Bioreactor(parametersExpUnConstr)
-simulateBioreactor(bExpUnConstr, parametersExpUnConstr.duration)
+simulateBioreactor(bExpUnConstr)
 scenarioName = "exp_unconstraint"
 saveBioreactorRun(bExpUnConstr, dataTimePoints, "./ManuscriptExperiments/Data/"*scenarioName)
 biomassPlotExpUnConstr = plotBiomass(bExpUnConstr)

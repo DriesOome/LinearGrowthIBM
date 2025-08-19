@@ -17,9 +17,11 @@ function mutateParameter(value::Float64, range::Vector{Float64})::Float64
 end
 
 function mutateParameterSet(oldParameters::BioreactorParameters, saRanges::Dict{Symbol, Vector{Float64}})::BioreactorParameters
-    newParameters::BioreactorParameters = deepcopy(nominalParameters)
+    newParameters::BioreactorParameters = deepcopy(oldParameters)
     for varName in keys(saRanges)
-        setproperty!(newParameters, varName, mutateParameter(getproperty(newParameters, varName), saRanges[varName]))
+        if rand(Bernoulli(0.25))
+            setproperty!(newParameters, varName, mutateParameter(getproperty(newParameters, varName), saRanges[varName]))
+        end
     end
     return newParameters
 end
@@ -31,8 +33,12 @@ function calculateDerivative(timepoints::Vector{Float64}, values::Vector{Float64
 end
 
 function calculateSaMeasure(b::Bioreactor)::Float64
-    timepoints = collect(0:1:b.parameters.duration)
+    timepoints = collect(0:b.parameters.agentTimeStep:b.parameters.duration)
     biomass = [sum(b.solution(t)[getCellIdx():3:end]) for t in timepoints]
+    k = min(10, length(timepoints))
+    timepoints = [mean(timepoints[(i-k):(i+k)]) for i in (1+k):(length(timepoints)-k)]
+    biomass = [mean(biomass[(i-k):(i+k)]) for i in (1+k):(length(biomass)-k)]
+    biomass ./= maximum(biomass)
     dBdt = calculateDerivative(timepoints, biomass)
     dbdt = calculateDerivative(timepoints, dBdt)
     return dbdt[end]/maximum(dbdt)
@@ -65,13 +71,19 @@ function runMarkovChainMonteCarloSa(nominalParameters::BioreactorParameters, saR
     pb::ProgressBar = ProgressBar(total=totalRuns)
     for runId in 1:totalRuns
         proposedParameters::BioreactorParameters = mutateParameterSet(currentParameters, saRanges)
-        bioreactor = Bioreactor(proposedParameters)
-        simulateBioreactor(bioreactor)
+        try
+            bioreactor = Bioreactor(proposedParameters)
+            simulateBioreactor(bioreactor)
+        catch e end
 
         bData::Dict{Symbol, Float64} = getSaBioreactorData(bioreactor, saRanges)
-        if rand(Binomial(1, calculateAcceptanceProbability(bData[:measure], saData[end, :measure], sensitivityConstant))) == 1
+        if rand(Bernoulli(calculateAcceptanceProbability(bData[:measure], saData[end, :measure], sensitivityConstant)))
             saData = append!(saData, getSaBioreactorData(bioreactor, saRanges))
             currentParameters = proposedParameters
+            # TEMPPPP
+            timepoints = collect(0:5/60:bioreactor.parameters.duration)
+            biomass = [sum(bioreactor.solution(t)[getCellIdx():3:end]) for t in timepoints]
+            display(plot(timepoints, biomass))
         end
         update(pb)
     end

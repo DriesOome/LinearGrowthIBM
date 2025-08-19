@@ -6,7 +6,7 @@ startingVolume::Float64 = 400*10^-11 # L
 startingEssentialProteinConcentration::Float64 = 200 # molecules
 
 # growth kinetics
-muMax::Float64 = 2 # divisions/h
+muMax::Float64 = log(2) # divisions/h
 carryingCapacity::Float64 = 1e8
 
 # essentialProtein kinetics

@@ -29,9 +29,11 @@ end
 function initializeBacterialPopulation(bioreactor::Bioreactor)
     u_bacteria::Vector{Float64} = []
     for i in 1:bioreactor.parameters.startingCellCount
-        push!(u_bacteria, rand()+1) # start with random volume
+        cellVolume::Float64 = rand(Uniform(0,1))+1
+        essentialMetabolite::Float64 = (bioreactor.parameters.essentialMetaboliteProductionRate*bioreactor.parameters.startingEssentialProteinConcentration-bioreactor.parameters.muMax)/(bioreactor.parameters.essentialMetaboliteDegradationRate)
+        push!(u_bacteria, cellVolume) # start with random volume
         push!(u_bacteria, bioreactor.parameters.startingEssentialProteinConcentration) # starting essential protein count
-        push!(u_bacteria, bioreactor.parameters.essentialMetaboliteProductionRate*bioreactor.parameters.startingEssentialProteinConcentration/(bioreactor.parameters.essentialMetaboliteDegradationRate)) # starting essential metabolite count
+        push!(u_bacteria, essentialMetabolite*cellVolume) # starting essential metabolite count
     end
     return u_bacteria
 end
@@ -85,7 +87,7 @@ function divideCells(integrator, bioreactor)
         resize!(integrator, length(integrator.u)+3)
         childId = totalCells(integrator.u)
         # reset volumes
-        setCellVolume!(integrator.u, childId,  getCellVolume(integrator.u, parentId)-rand(Normal(1,0.1)))
+        setCellVolume!(integrator.u, childId,  getCellVolume(integrator.u, parentId)-rand(Normal(1,0.05)))
         setCellVolume!(integrator.u, parentId, getCellVolume(integrator.u, parentId)-getCellVolume(integrator.u, childId))
         # divide essential protein         
         setCellEssentialProtein!(integrator.u, childId, rand(Binomial(floor(getCellEssentialProtein(integrator.u, parentId)), bioreactor.parameters.divisionSymmetry)))
@@ -105,7 +107,7 @@ function bioreactorODEFunction(du, u, bioreactor::Bioreactor, t)
     essentialProteinCounts::Vector{Float64} = u[getCellIdx()+1:3:end]
     essentialMetaboliteCounts::Vector{Float64} = u[getCellIdx()+2:3:end]
     essentialMetaboliteConcentration::Vector{Float64} = essentialMetaboliteCounts./u[getCellIdx():3:end]
-    growthModifications::Vector{Float64} = broadcast(max, 0.0, (essentialMetaboliteConcentration)./((essentialMetaboliteConcentration) .+ bioreactor.parameters.essentialMetaboliteKm))
+    growthModifications::Vector{Float64} = broadcast(max, 0.0, (essentialMetaboliteConcentration)./(essentialMetaboliteConcentration .+ bioreactor.parameters.essentialMetaboliteKm))
     thresholdBits::Vector{Float64} = essentialMetaboliteConcentration .>= bioreactor.parameters.essentialMetaboliteThreshold
     du[getCellIdx():3:end] = bioreactor.parameters.muMax.*growthModifications.*thresholdBits
     du[getCellIdx()+1:3:end] = bioreactor.parameters.essentialProteinProductionRate .- bioreactor.parameters.essentialProteinDegradationRate.*essentialProteinCounts

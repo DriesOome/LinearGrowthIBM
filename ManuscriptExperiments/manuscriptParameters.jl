@@ -5,7 +5,7 @@ startingVolume::Float64 = 400*10^-11 # L
 startingEssentialProteinConcentration::Float64 = 200 # molecules
 
 # growth kinetics
-muMax::Float64 = 2 # divisions/h
+muMax::Float64 = log(2) # divisions/h
 carryingCapacity::Float64 = 1e6
 
 # essentialProtein kinetics
@@ -21,7 +21,7 @@ essentialMetaboliteThreshold::Float64 = essentialMetaboliteKm/4
 
 # simulation settings
 agentTimeStep::Float64 = 5/60 # h
-duration = 15.0
+duration = 30.0
 showProgress::Bool = true
 
 manuscriptParameters::BioreactorParameters = BioreactorParameters(
