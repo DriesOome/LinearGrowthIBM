@@ -2,12 +2,12 @@ using Plots
 include("./bioreactor.jl")
 
 # initial conditions
-startingCellCount::Int64 = 500 # cells
+startingCellCount::Int64 = 100 # cells
 startingVolume::Float64 = 400*10^-11 # L
 startingEssentialProteinConcentration::Float64 = 200 # molecules
 
 # growth kinetics
-muMax::Float64 = log(2) # divisions/h
+muMax::Float64 = 2.0#log(2) # divisions/h
 carryingCapacity::Float64 = 1e8
 
 # essentialProtein kinetics
@@ -16,9 +16,9 @@ essentialProteinProductionRate::Float64 = 0.0
 essentialProteinDegradationRate::Float64 = 0.0 # 1/h
 
 # essential metabolite kinetics
-essentialMetaboliteProductionRate::Float64 = 2.0
+essentialMetaboliteProductionRate::Float64 = 0.1
 essentialMetaboliteDegradationRate::Float64 = 0.5
-essentialMetaboliteKm::Float64 = 50.0
+essentialMetaboliteKm::Float64 = 500.0
 essentialMetaboliteThreshold::Float64 = 0.0
 
 # simulation settings
@@ -46,24 +46,17 @@ include("./Plotting/plotting.jl")
 display(plotBioreactor(b))
 #display(essentialProteinHistogram(b, 3.0))
 
-#=
-timepoints = collect(0:5/60:b.parameters.duration)
-biomass = [sum(b.solution(t)[getCellIdx():3:end]) for t in timepoints]
-dBdt = calculateDerivative(timepoints, biomass)
-dbdt = calculateDerivative(timepoints, dBdt)
-plot(timepoints, biomass)
-plot(timepoints, dBdt)
-plot(timepoints, dbdt)
-=#
 
-k = 10
-timepoints = collect(0:5/60:b.parameters.duration)
-biomass = [sum(b.solution(t)[getCellIdx():3:end]) for t in timepoints]
+timepoints = collect(0:b.parameters.agentTimeStep:b.parameters.duration)
+biomass = [getTotalCellDensity(b.solution(t)) for t in timepoints]
+k = min(10, length(timepoints))
 timepoints = [mean(timepoints[(i-k):(i+k)]) for i in (1+k):(length(timepoints)-k)]
 biomass = [mean(biomass[(i-k):(i+k)]) for i in (1+k):(length(biomass)-k)]
-biomass ./= maximum(biomass)
+#biomass ./= maximum(biomass)
 dBdt = calculateDerivative(timepoints, biomass)
-dbdt = calculateDerivative(timepoints, dBdt)
+dbdt = calculateDerivative(timepoints, dBdt)./(startingCellCount*muMax^2)
+dbdt[end]/maximum(dbdt)
+
 display(plot(timepoints, biomass))
 display(plot(timepoints, dBdt))
 display(plot(timepoints, dbdt))

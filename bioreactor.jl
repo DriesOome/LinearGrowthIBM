@@ -26,13 +26,15 @@ mutable struct Bioreactor
 end
 
 # init functions
-function initializeBacterialPopulation(bioreactor::Bioreactor)
+function initializeBacterialPopulation(b::Bioreactor)
     u_bacteria::Vector{Float64} = []
-    for i in 1:bioreactor.parameters.startingCellCount
+    essentialMetabolite::Float64 = solve(NonlinearProblem((u, p) -> p[1]*p[2] .- p[3].*u - p[4].*(u./(u .+ p[5])), [0.0], [
+        b.parameters.essentialMetaboliteProductionRate, b.parameters.startingEssentialProteinConcentration, b.parameters.essentialMetaboliteDegradationRate, b.parameters.muMax, b.parameters.essentialMetaboliteKm
+    ]))[1]
+    for i in 1:b.parameters.startingCellCount
         cellVolume::Float64 = rand(Uniform(0,1))+1
-        essentialMetabolite::Float64 = (bioreactor.parameters.essentialMetaboliteProductionRate*bioreactor.parameters.startingEssentialProteinConcentration-bioreactor.parameters.muMax)/(bioreactor.parameters.essentialMetaboliteDegradationRate)
         push!(u_bacteria, cellVolume) # start with random volume
-        push!(u_bacteria, bioreactor.parameters.startingEssentialProteinConcentration) # starting essential protein count
+        push!(u_bacteria, b.parameters.startingEssentialProteinConcentration) # starting essential protein count
         push!(u_bacteria, essentialMetabolite*cellVolume) # starting essential metabolite count
     end
     return u_bacteria
@@ -131,6 +133,10 @@ end
 # getters and setters
 function totalCells(u)
     return Int64((length(u)-getProductIdx())/3)
+end
+
+function getTotalCellDensity(u)
+    return sum(u[getCellIdx():3:end])
 end
 
 function getCellIdx(cellId)

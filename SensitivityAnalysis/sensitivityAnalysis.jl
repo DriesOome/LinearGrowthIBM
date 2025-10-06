@@ -51,7 +51,7 @@ function plotSaBiomass!(parentPlot, bioreactor::Bioreactor, varName::Symbol)
     time = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
 
     parentPlot = plot!(parentPlot, time, [sum(bioreactor.solution(t)[getCellIdx():3:end]) for t in time], labels=string(round(getproperty(bioreactor.parameters, varName), digits=1)))
-    parentPlot = plot!(parentPlot, xlabel="time (h)", ylabel="density/L")
+    parentPlot = plot!(parentPlot, xlabel="time (h)", ylabel="density")
     parentPlot = plot!(parentPlot, xguidefontsize=fontsize, yguidefontsize=fontsize, legendfontpointsize=7, legend=:best)
     parentPlot = plot!(parentPlot, xtick=[i for i in 0:1:100])
     return parentPlot

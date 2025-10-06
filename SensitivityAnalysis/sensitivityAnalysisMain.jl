@@ -7,10 +7,9 @@ println("Running local SA...")
 saRanges::Dict{Symbol, Vector{Float64}} = Dict{Symbol, Vector{Float64}}()
 saRanges[:startingEssentialProteinConcentration] = [1.0, 400.0]
 saRanges[:muMax] = [0.5, 3.0]
-saRanges[:essentialProteinProductionRate] = [0.0, 5.0]
 saRanges[:essentialProteinDegradationRate] = [0.0, 1.0]
 saRanges[:essentialMetaboliteProductionRate] = [0.0, 5.0]
-saRanges[:essentialMetaboliteDegradationRate] = [0.0, 5.0]
+saRanges[:essentialMetaboliteDegradationRate] = [0.1, 5.0]
 saRanges[:essentialMetaboliteKm] = [5.0, 100.0]
 saRanges[:essentialMetaboliteThreshold] = [5.0, 100.0]
 
