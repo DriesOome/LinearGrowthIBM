@@ -13,7 +13,7 @@ function plotBiomass!(parentPlot, bioreactor::Bioreactor)
     # mappings
     time = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
 
-    parentPlot = plot!(parentPlot, time, [sum(bioreactor.solution(t)[getCellIdx():3:end]) for t in time], labels="total biomass", c=:blue, xlabel="time (h)", ylabel="density/L")
+    parentPlot = plot!(parentPlot, time, [getTotalCellDensity(bioreactor.solution(t)) for t in time], labels="total biomass", c=:blue, xlabel="time (h)", ylabel="density/L")
 
     parentPlot = plot!(parentPlot, xguidefontsize=fontsize, yguidefontsize=fontsize, legendfontpointsize=fontsize, legend=:none)
     parentPlot = plot!(parentPlot, xtick=[i for i in 0:1:100])

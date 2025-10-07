@@ -22,7 +22,7 @@ essentialMetaboliteThreshold::Float64 = 0.0
 
 # simulation settings
 agentTimeStep::Float64 = 1/60 # h
-duration = 20.0
+duration = 50.0
 showProgress::Bool = false
 
 # Init parameter struct

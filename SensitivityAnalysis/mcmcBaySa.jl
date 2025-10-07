@@ -4,11 +4,10 @@ addprocs(max(4-nprocs(), 0))
 @everywhere include("../bioreactorParameters.jl")
 @everywhere include("../bioreactor.jl")
 @everywhere using Interpolations
-using Measures
-using Plots
+
 @everywhere using DataFrames
 using ProgressBars
-
+using StatsBase
 # mutater functions
 @everywhere function mutateParameter(value::Float64, range::Vector{Float64})::Float64
     newValue::Float64 = rand(Uniform(range[1], range[2])) # value*exp(rand(Normal(0, 1)))
@@ -46,7 +45,8 @@ end
     biomass = [mean(biomass[(i-k):(i+k)]) for i in (1+k):(length(biomass)-k)]
     dBdt = calculateDerivative(timepoints, biomass)
     dbdt = calculateDerivative(timepoints, dBdt)./(b.parameters.startingCellCount*b.parameters.muMax^2)
-    return dbdt[end]/maximum(dbdt)
+    measure = mean(dbdt[end-k:end])/maximum(dbdt)
+    return measure
 end
 
 @everywhere function calculateAcceptanceProbability(newMeasure::Float64, oldMeasure::Float64, sensitivityConstant::Float64)::Float64
@@ -69,26 +69,27 @@ end
 @everywhere function runMarkovChainMonteCarloSa(nominalParameters::BioreactorParameters, saRanges::Dict{Symbol, Vector{Float64}}, totalRuns::Int64, sensitivityConstant::Float64)::DataFrame 
     saData::DataFrame = DataFrame()
     # init first bioreactor 
-    bioreactor::Bioreactor = Bioreactor(nominalParameters)
-    simulateBioreactor(bioreactor)
-    bData = getSaBioreactorData(bioreactor, saRanges)
-    currentMeasure = bData[:measure]
-    append!(saData, bData)
+    bioreactorPrev::Bioreactor = Bioreactor(nominalParameters)
+    simulateBioreactor(bioreactorPrev)
+    bDataPrev = getSaBioreactorData(bioreactorPrev, saRanges)
+    currentMeasure = bDataPrev[:measure]
+    append!(saData, bDataPrev)
 
     # run iterations
-    currentParameters::BioreactorParameters = deepcopy(nominalParameters)
+    parametersPrev::BioreactorParameters = deepcopy(nominalParameters)
     pb::ProgressBar = ProgressBar(total=totalRuns)
     for runId in 1:totalRuns
-        proposedParameters::BioreactorParameters = mutateParameterSet(currentParameters, saRanges)
+        parametersProp::BioreactorParameters = mutateParameterSet(parametersPrev, saRanges)
         try
-            bioreactor = Bioreactor(proposedParameters)
-            simulateBioreactor(bioreactor)
-            bData::Dict{Symbol, Float64} = getSaBioreactorData(bioreactor, saRanges)
-            if rand(Bernoulli(calculateAcceptanceProbability(bData[:measure], currentMeasure, sensitivityConstant)))
-                currentParameters = proposedParameters
-                currentMeasure = bData[:measure]
+            bioreactorProp::Bioreactor = Bioreactor(parametersProp)
+            simulateBioreactor(bioreactorProp)
+            bDataProp::Dict{Symbol, Float64} = getSaBioreactorData(bioreactorProp, saRanges)
+            acceptanceProb = calculateAcceptanceProbability(bDataProp[:measure], bDataPrev[:measure], sensitivityConstant)
+            if !isnan(acceptanceProb) && rand(Bernoulli(acceptanceProb))
+                parametersPrev = parametersProp
+                bDataPrev = bDataProp
             end
-            saData = append!(saData, getSaBioreactorData(bioreactor, saRanges))
+            saData = append!(saData, bDataPrev)
         catch e 
             println(e)
         end
@@ -112,37 +113,6 @@ function runMarkovChainMonteCarloSa(nominalParameters::BioreactorParameters, saR
     return saData
 end
 
-# sa plots 
-function plotSaParameters(saData::DataFrame)
-    saParameterPlots = []
-    for colName in names(saData)
-        saParameterPlot = histogram(saData[:, colName], title=colName, legend=:none, normalize=:pdf)
-        push!(saParameterPlots, saParameterPlot)
-    end
-    return plot(saParameterPlots..., size=(2560,1444).*0.7, margin=10mm)
-end
-
-# derivative plots
-function plotBiomassDerivative(bioreactor::Bioreactor)
-    return plotBiomassDerivative!(plot(), bioreactor)
-end
-
-function plotBiomassDerivative!(parentPlot, bioreactor::Bioreactor)
-    timepoints::Vector{Float64} = collect(0:bioreactor.parameters.agentTimeStep:bioreactor.parameters.duration)
-    biomass::Vector{Float64} = [sum(bioreactor.solution(t)[getCellIdx():3:end]) for t in timepoints]
-    derivative = calculateDerivative(timepoints, biomass)
-    return plot!(parentPlot, timepoints, derivative)
-end
-
-function plotMcmcChains(saData::DataFrame)
-    saParameterPlots = []
-    for colName in names(saData)
-        saParameterPlot = plot(1:size(saData, 1), saData[:, colName], title=colName, legend=:none)
-        push!(saParameterPlots, saParameterPlot)
-    end
-    return plot(saParameterPlots..., size=(2560,1444).*0.7, margin=10mm)
-end
-
 function omitBurnin(saData::DataFrame, burnin::Int64)
     burninData = DataFrame()
     for saSubData in groupby(saData, :chainId)
@@ -153,17 +123,6 @@ function omitBurnin(saData::DataFrame, burnin::Int64)
     return burninData 
 end
 
-function plotAutoCorrelation(saData::DataFrame; maxlag=100)
-    saAutoCorrelationPlots = []
-    for colName in setdiff(names(saData), ["measure", "iteration", "chainId"])
-        saAutocorrelationPlot = plot()
-        for subData in groupby(saData, :chainId)
-            plot!(saAutocorrelationPlot, 0:maxlag, autocor(subData[:, colName], 0:maxlag), title=colName, legend=:none)
-        end
-        push!(saAutoCorrelationPlots, saAutocorrelationPlot)
-    end
-    return plot(saAutoCorrelationPlots..., size=(2560,1444).*0.7, margin=10mm)
-end
 
 
 """

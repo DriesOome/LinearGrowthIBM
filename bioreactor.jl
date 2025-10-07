@@ -9,7 +9,6 @@ mutable struct Bioreactor
     ## reactor variables
     # substrateConcentration::Float64
     # volume::Float64
-    # productConcentration::Float64
     ## cell variables
     # volume::Float64
     # essentialProtein::Float64
@@ -45,7 +44,8 @@ function initializeBioreactorState(bioreactor::Bioreactor)
     u::Vector{Float64} = []
     # global state variables
     push!(u, bioreactor.parameters.startingVolume) # volume
-    push!(u, 0) # product
+    push!(u, 0) # dead cell count
+    push!(u, 0) # dead cell volume
     # cell state variables
     append!(u, initializeBacterialPopulation(bioreactor))
 end
@@ -65,9 +65,22 @@ function simulateBioreactor(bioreactor::Bioreactor)
     stoppingAffect!(integrator) = terminateBioreactor(integrator, bioreactor)
     stoppingCallback = DiscreteCallback(stoppingCondition, stoppingAffect!)
 
-    bioreactor.solution = solve(ODEProblem(bioreactorODEFunction, u_init, (0, bioreactor.parameters.duration), bioreactor),
-        callback = CallbackSet(stoppingCallback, agentCallback), tstops = stops
-    )
+    prob = ODEProblem(bioreactorODEFunction, u_init, (0, bioreactor.parameters.duration), bioreactor)
+    integrator = init(prob, Tsit5(), tstops=stops)
+
+    ts = Float64[]
+    us = Vector{Vector{Float64}}()
+    push!(ts, integrator.t)
+    push!(us, copy(integrator.u))
+    while integrator.t < bioreactor.parameters.duration
+        step!(integrator)
+        divideCells(integrator, bioreactor)
+        removeDeadCells(integrator, bioreactor)
+        u_modified!(integrator, true)
+        push!(ts, integrator.t)
+        push!(us, copy(integrator.u))
+    end
+    bioreactor.solution = DiffEqBase.build_solution(prob, integrator.alg, ts, us)
 end
 
 function terminateBioreactor(integrator, bioreactor::Bioreactor)
@@ -82,12 +95,30 @@ function agentActions(integrator, bioreactor::Bioreactor)
     nothing
 end
 
+
+function removeDeadCells(integrator, bioreactor::Bioreactor)
+    u = integrator.u
+    essentialMetaboliteCounts::Vector{Float64} = u[getCellIdx()+2:3:end]
+    essentialMetaboliteConcentration::Vector{Float64} = essentialMetaboliteCounts./u[getCellIdx():3:end]
+    growthModifications::Vector{Float64} = broadcast(max, 0.0, (essentialMetaboliteConcentration)./(essentialMetaboliteConcentration .+ bioreactor.parameters.essentialMetaboliteKm))
+    nonGrowingCellsIds = findall(growthModifications .< 0.01)
+    integrator.u[getDeadCellCountIdx()] += length(nonGrowingCellsIds)
+    integrator.u[getDeadCellVolumeIdx()] += sum([getCellVolume(integrator.u, cellId) for cellId in nonGrowingCellsIds])
+    nonGrowingCellsIds = nonGrowingCellsIds .- 1
+    nonGrowingCellsIds = nonGrowingCellsIds.*3 .+ getCellIdx()
+    toDelete = copy(nonGrowingCellsIds)
+    append!(toDelete, nonGrowingCellsIds .+ 1)
+    append!(toDelete, nonGrowingCellsIds .+ 2)
+    toDelete = sort(toDelete)
+    deleteat!(integrator, toDelete)
+end
+
 function divideCells(integrator, bioreactor)
     # all cells with a volume larger than 1 are dividing
     dividingCells = findall(integrator.u[getCellIdx():3:end] .> 2)
     for parentId in dividingCells
         resize!(integrator, length(integrator.u)+3)
-        childId = totalCells(integrator.u)
+        childId = totalGrowingCells(integrator.u)
         # reset volumes
         setCellVolume!(integrator.u, childId,  getCellVolume(integrator.u, parentId)-rand(Normal(1,0.05)))
         setCellVolume!(integrator.u, parentId, getCellVolume(integrator.u, parentId)-getCellVolume(integrator.u, childId))
@@ -104,7 +135,8 @@ end
 function bioreactorODEFunction(du, u, bioreactor::Bioreactor, t)
     # simulate bioreactor variables
     du[getVolumeIdx()] = calculateChangeVolume(bioreactor)
-    du[getProductIdx()] = calculateChangeProductConcentration(bioreactor)
+    du[getDeadCellCountIdx()] = 0.0
+    du[getDeadCellVolumeIdx()] = 0.0
     # simulate cell variables
     essentialProteinCounts::Vector{Float64} = u[getCellIdx()+1:3:end]
     essentialMetaboliteCounts::Vector{Float64} = u[getCellIdx()+2:3:end]
@@ -124,19 +156,20 @@ function calculateChangeVolume(bioreactor::Bioreactor)
     return dV
 end
 
-function calculateChangeProductConcentration(bioreactor::Bioreactor)
-    dP::Float64 = 0.0
-    return dP
-end
+
 # helper functions
 
 # getters and setters
+function totalGrowingCells(u)
+    return Int64((length(u)-getDeadCellVolumeIdx())/3)
+end
+
 function totalCells(u)
-    return Int64((length(u)-getProductIdx())/3)
+    return Int64((length(u)-getDeadCellVolumeIdx())/3) + u[getDeadCellCountIdx()]
 end
 
 function getTotalCellDensity(u)
-    return sum(u[getCellIdx():3:end])
+    return sum(u[getCellIdx():3:end]) + u[getDeadCellVolumeIdx()]
 end
 
 function getCellIdx(cellId)
@@ -171,12 +204,16 @@ function getVolumeIdx()
     return 1
 end
 
-function getProductIdx()
+function getDeadCellCountIdx()
     return getVolumeIdx()+1
 end
 
+function getDeadCellVolumeIdx()
+    return getDeadCellCountIdx()+1
+end
+
 function getCellIdx()
-    return getProductIdx()+1
+    return getDeadCellVolumeIdx()+1
 end
 
 function getFractionGrowingCells(u, growthThreshold::Float64)

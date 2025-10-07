@@ -1,5 +1,6 @@
 include("./mcmcBaySa.jl")
 include("./nominalParameters.jl")
+include("./mcmcBayPlotting.jl")
 using CSV
 ### Main script for running the main mcmc baysian sensitivity analysis 
 #
@@ -15,20 +16,25 @@ saRanges[:essentialMetaboliteKm] = [1e1, 1e3]
 # saRanges[:essentialMetaboliteThreshold] = [5.0, 100.0]
 
 ## step 2: run mcmc 
-sigma = 0.01
-saData = runMarkovChainMonteCarloSa(nominalParameters, saRanges, 1000, sigma, 4)
+sigma = 0.05
+saData = runMarkovChainMonteCarloSa(nominalParameters, saRanges, 10000, sigma, 4)
 CSV.write("./SensitivityAnalysis/saData.csv", saData)
 
 ## step 3: plot results
 saData = CSV.read("./SensitivityAnalysis/saData.csv", DataFrame)
-burnin::Int64 = 100 
+burnin::Int64 = 1000
 saData = omitBurnin(saData, burnin)
 
 combinedDiagnogstics = mcmcDiagnostics(saData, maxlag=100)
 
+lbs::Dict{String, LaTeXString} = Dict{String, LaTeXString}()
+lbs["essentialMetaboliteDegradationRate"] = L"\gamma_M"
+lbs["essentialMetaboliteKm"] = L"K_M"
+lbs["muMax"] = L"\mu_{max}"
+lbs["essentialMetaboliteProductionRate"] = L"\alpha_M"
+display(plotSaParameters(saData, lbs))
+savefig(plotSaParameters(saData, lbs), "./SensitivityAnalysis/saMcmcBayAnalysis.png")
+plotSaScatter(saData)
 
-display(plotSaParameters(saData))
-savefig(plotSaParameters(saData), "./SensitivityAnalysis/saMcmcBayAnalysis.png")
-
-display(plotMcmcChains(saData))
-savefig(plotMcmcChains(saData), "./SensitivityAnalysis/saMcmcBayTrace.png")
+display(plotMcmcChains(saData, lbs))
+savefig(plotMcmcChains(saData, lbs), "./SensitivityAnalysis/saMcmcBayTrace.png")
