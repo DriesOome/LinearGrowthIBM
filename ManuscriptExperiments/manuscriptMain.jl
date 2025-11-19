@@ -37,6 +37,7 @@ parametersExpUnConstr = deepcopy(manuscriptParameters)
 parametersExpUnConstr.divisionSymmetry = 0.5
 parametersExpUnConstr.essentialProteinProductionRate = 1000.0
 parametersExpUnConstr.duration = 8.0
+dataTimePoints = collect(0:0.5:parametersExpUnConstr.duration)
 bExpUnConstr = Bioreactor(parametersExpUnConstr)
 simulateBioreactor(bExpUnConstr)
 scenarioName = "exp_unconstraint"

@@ -1,16 +1,16 @@
 using Distributed
-addprocs(max(4-nprocs(), 0))
-
+addprocs(max(5-nprocs(), 0))
 @everywhere include("../bioreactorParameters.jl")
 @everywhere include("../bioreactor.jl")
 @everywhere using Interpolations
-
+@everywhere using Distributions
 @everywhere using DataFrames
 using ProgressBars
 using StatsBase
 # mutater functions
+
 @everywhere function mutateParameter(value::Float64, range::Vector{Float64})::Float64
-    newValue::Float64 = rand(Uniform(range[1], range[2])) # value*exp(rand(Normal(0, 1)))
+    newValue::Float64 = rand(Uniform(range[1], range[2])) 
     if newValue < range[1] || newValue > range[2]
         return mutateParameter(value, range)
     else
@@ -24,11 +24,6 @@ end
         setproperty!(newParameters, varName, mutateParameter(getproperty(newParameters, varName), saRanges[varName]))
     end
     return newParameters
-end
-
-@everywhere function enforceParameterInvariants(parameters::BioreactorParameters)
-    # steady state [M] should give 
-    return parameters
 end
 
 # score functions
@@ -51,7 +46,6 @@ end
 
 @everywhere function calculateAcceptanceProbability(newMeasure::Float64, oldMeasure::Float64, sensitivityConstant::Float64)::Float64
     return min(1.0, exp((oldMeasure^2-newMeasure^2)/sensitivityConstant^2))
-    #return min(1.0, exp(-(newMeasure^2)/(sensitivityConstant^2))/exp(-(oldMeasure^2)/(sensitivityConstant^2)))
 end
 
 # data functions 
@@ -72,7 +66,6 @@ end
     bioreactorPrev::Bioreactor = Bioreactor(nominalParameters)
     simulateBioreactor(bioreactorPrev)
     bDataPrev = getSaBioreactorData(bioreactorPrev, saRanges)
-    currentMeasure = bDataPrev[:measure]
     append!(saData, bDataPrev)
 
     # run iterations
@@ -123,32 +116,30 @@ function omitBurnin(saData::DataFrame, burnin::Int64)
     return burninData 
 end
 
-
-
 """
 Compute autocorrelation, IAT, and ESS for each column of a DataFrame of MCMC samples.
 Returns a DataFrame with one row per parameter.
 """
-function chainDiagnostics(df::Union{DataFrame, SubDataFrame}; maxlag::Int=2000, window_rule=:firstneg)
-    N = nrow(df)
+function chainDiagnostics(data::Union{DataFrame, SubDataFrame}; maxlag::Int=2000)
+    N = nrow(data)
     params = setdiff(names(saData), ["chainId", "measure", "iteration"])
     result = DataFrame(parameter=String[], iat=Float64[], ess=Float64[], ss=Int[], mu=Float64[], sigma=Float64[])
     for p in params
-        x = df[:, p]
+        x = data[:, p]
         rho = autocor(x, 0:maxlag)
         # truncate at first negative or use full sum
         idx = findfirst(<(0), rho[2:end])
         M = isnothing(idx) ? length(rho)-1 : idx
-        τ = 1 + 2 * sum(rho[2:M])
-        ESS = N / τ
+        tau = 1 + 2 * sum(rho[2:M])
+        ESS = N / tau
         mu = mean(x)
         sigma = var(x)
-        push!(result, (String(p), τ, ESS, length(x), mu, sigma))
+        push!(result, (String(p), tau, ESS, length(x), mu, sigma))
     end
     return result
 end
 
-function mcmcDiagnostics(saData::DataFrame; maxlag::Int64=2000, window_rule=:firstneg)
+function mcmcDiagnostics(saData::DataFrame; maxlag::Int64=2000)
     combinedDiagnogstics = DataFrame()
     for saSubData in groupby(saData, :chainId)
         subDiagnostics = chainDiagnostics(saSubData, maxlag=maxlag)

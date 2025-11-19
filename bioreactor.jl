@@ -143,7 +143,7 @@ function bioreactorODEFunction(du, u, bioreactor::Bioreactor, t)
     essentialMetaboliteConcentration::Vector{Float64} = essentialMetaboliteCounts./u[getCellIdx():3:end]
     growthModifications::Vector{Float64} = broadcast(max, 0.0, (essentialMetaboliteConcentration)./(essentialMetaboliteConcentration .+ bioreactor.parameters.essentialMetaboliteKm))
     thresholdBits::Vector{Float64} = essentialMetaboliteConcentration .>= bioreactor.parameters.essentialMetaboliteThreshold
-    du[getCellIdx():3:end] = bioreactor.parameters.muMax.*growthModifications.*thresholdBits
+    du[getCellIdx():3:end] = (bioreactor.parameters.muMax.*growthModifications.*thresholdBits./log(2))
     du[getCellIdx()+1:3:end] = bioreactor.parameters.essentialProteinProductionRate .- bioreactor.parameters.essentialProteinDegradationRate.*essentialProteinCounts
     du[getCellIdx()+2:3:end] = bioreactor.parameters.essentialMetaboliteProductionRate.*essentialProteinCounts .- bioreactor.parameters.essentialMetaboliteDegradationRate.*essentialMetaboliteCounts
     nothing
@@ -217,12 +217,5 @@ function getCellIdx()
 end
 
 function getFractionGrowingCells(u, growthThreshold::Float64)
-    fraction = 0
-    for cellId in 1:totalCells(u)
-        if getCellEssentialMetabolite(u, cellId)/getCellVolume(u, cellId) >= growthThreshold
-            fraction += 1
-        end
-    end
-    fraction = fraction/totalCells(u)
-    return fraction
+    return totalGrowingCells(u)/totalCells(u)
 end

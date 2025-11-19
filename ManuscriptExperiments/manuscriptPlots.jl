@@ -6,7 +6,7 @@ function plotManuscriptFigure(b1::Bioreactor, b2::Bioreactor)
 
     # mappings
     time = collect(0:b1.parameters.agentTimeStep:b1.parameters.duration)
-    p1 = plot(time, [sum(b1.solution(t)[getCellIdx():3:end]) for t in time], c=:blue, 
+    p1 = plot(time, [getTotalCellDensity(b1.solution(t)) for t in time], c=:blue, 
         xlabel="Time (h)", ylabel="density/L", title="exponential growth", legend=:none,
         xguidefontsize=14, yguidefontsize=14, titlefontsize=16,
         xticks=[i for i in 0:b1.parameters.duration], ylims=[0, ylim_cellDensity], 
@@ -16,7 +16,7 @@ function plotManuscriptFigure(b1::Bioreactor, b2::Bioreactor)
         ylabel="% growing", yguidefontsize=14,  ylims=[0,105], c=:red, legend=:none)
 
     time = collect(0:b2.parameters.agentTimeStep:b2.parameters.duration)
-    p2 = plot(time, [sum(b2.solution(t)[getCellIdx():3:end]) for t in time], c=:blue, 
+    p2 = plot(time, [getTotalCellDensity(b2.solution(t)) for t in time], c=:blue, 
         xlabel="Time (h)", ylabel="density/L", title="linear growth",
         xguidefontsize=14, yguidefontsize=14, titlefontsize=16,
         xticks=[i for i in 0:2:b2.parameters.duration], legend=:none, ylims=[0, ylim_cellDensity])

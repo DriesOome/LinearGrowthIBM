@@ -11,7 +11,7 @@ carryingCapacity::Float64 = 1e6
 # essentialProtein kinetics
 divisionSymmetry::Float64 = 0.5 # [0, 1]
 essentialProteinProductionRate::Float64 = 0.0
-essentialProteinDegradationRate::Float64 = 0.05 # 1/h
+essentialProteinDegradationRate::Float64 = 0.0 # 1/h
 
 # essential metabolite kinetics
 essentialMetaboliteProductionRate::Float64 = 2.0

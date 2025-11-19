@@ -4,6 +4,7 @@ include("./sensitivityAnalysis.jl")
 println("Running local SA...")
 ### Analysis: local sensitivy analysis 
 ## step 1: create ranges for each parameter under investigation
+nominalParameters.duration = 10.0
 saRanges::Dict{Symbol, Vector{Float64}} = Dict{Symbol, Vector{Float64}}()
 saRanges[:startingEssentialProteinConcentration] = [1.0, 400.0]
 saRanges[:muMax] = [0.5, 3.0]
@@ -12,7 +13,6 @@ saRanges[:essentialMetaboliteProductionRate] = [0.0, 5.0]
 saRanges[:essentialMetaboliteDegradationRate] = [0.1, 5.0]
 saRanges[:essentialMetaboliteKm] = [5.0, 100.0]
 saRanges[:essentialMetaboliteThreshold] = [5.0, 100.0]
-
 
 
 ## step 2: Create and run bioreactors 
@@ -25,6 +25,17 @@ for varName in keys(saRanges)
 end
 
 ## step 3: Plot results
-savefig(plotSensitivityAnalysis(saBioreactors), "./saAnalysis.png")
+labels::Dict{Symbol, LaTeXString} = Dict{Symbol, LaTeXString}()
+labels[:essentialMetaboliteDegradationRate] = L"\gamma_M"
+labels[:essentialMetaboliteKm] = L"K_M"
+labels[:muMax] = L"\mu_{max}"
+labels[:essentialProteinDegradationRate] = L"\gamma_E"
+labels[:essentialProteinProductionRate] = L"\alpha_E"
+labels[:essentialMetaboliteProductionRate] = L"\alpha_M"
+labels[:startingEssentialProteinConcentration] = L"E_0"
+labels[:essentialMetaboliteThreshold] = L"M_T"
+
+display(plotSensitivityAnalysis(saBioreactors, labels))
+savefig(plotSensitivityAnalysis(saBioreactors, labels), "./saAnalysis.png")
 
 println("Done!")

@@ -3,11 +3,11 @@ using DataFrames
 using CSV
 
 function extractDataFrame(bioreactor::Bioreactor, timePoints::Vector{Float64})
-    data::DataFrame = DataFrame(time=[], cellId=[], volume=[], essentialProtein=[], essentialMetabolite=[])
+    data::DataFrame = DataFrame(time=[], cellId=[], volume=[], essentialProtein=[], essentialMetabolite=[], deadcells=[])
     for timePoint in timePoints
         u = bioreactor.solution(timePoint)
-        for cellId in 1:totalCells(u)
-            push!(data, [timePoint, cellId, getCellVolume(u, cellId), getCellEssentialProtein(u, cellId), getCellEssentialMetabolite(u, cellId)])
+        for cellId in 1:totalGrowingCells(u)
+            push!(data, [timePoint, cellId, getCellVolume(u, cellId), getCellEssentialProtein(u, cellId), getCellEssentialMetabolite(u, cellId), totalCells(u)])
         end
     end
     return data
